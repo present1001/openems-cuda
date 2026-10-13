@@ -47,12 +47,14 @@ protected:
 	Operator_Ext_LumpedRLC* m_Op_Ext_RLC;
 
 	// Auxilliary containers
+	// Keep RLC coefficients and history in double: small timesteps can make
+	// the recurrence unstable when rounded to the field precision.
 
 	// Array setup: volt_C_ADE[mesh_pos]
-	FDTD_FLOAT *v_Il;		// Container for current on inductor- Parallel RLC
+	double *v_Il;		// Container for current on inductor- Parallel RLC
 
-	FDTD_FLOAT **v_Vdn;		// Container for nodal vd at [n],[n-1],[n-2]
-	FDTD_FLOAT **v_Jn;		// Container for nodal J at [n],[n-1],[n-2]
+	double **v_Vdn;		// Container for nodal vd at [n],[n-1],[n-2]
+	double **v_Jn;		// Container for nodal J at [n],[n-1],[n-2]
 
 };
 

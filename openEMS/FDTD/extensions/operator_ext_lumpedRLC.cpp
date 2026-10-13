@@ -362,7 +362,7 @@ bool Operator_Ext_LumpedRLC::BuildExtension()
 								{
 									m_Op->EC_G[dir][iPos] = 0.0;
 
-									FDTD_FLOAT Cd = m_Op->EC_C[dir][iPos];
+									double Cd = m_Op->EC_C[dir][iPos];
 
 									// Check if the natural grid capacitance is too small
 									// relative to the series impedance at fMax.
@@ -464,17 +464,17 @@ bool Operator_Ext_LumpedRLC::BuildExtension()
 		v_RLC_dir 	= new int[RLC_count];
 
 		// Parallel circuit coefficients
-		v_RLC_ilv 	= new FDTD_FLOAT[RLC_count];
-		v_RLC_i2v 	= new FDTD_FLOAT[RLC_count];
+		v_RLC_ilv 	= new double[RLC_count];
+		v_RLC_i2v 	= new double[RLC_count];
 
 		// Series circuit coefficients
-		v_RLC_vv2 = new FDTD_FLOAT[RLC_count];
-		v_RLC_vj1 = new FDTD_FLOAT[RLC_count];
-		v_RLC_vj2 = new FDTD_FLOAT[RLC_count];
-		v_RLC_vvd = new FDTD_FLOAT[RLC_count];
-		v_RLC_ib0 = new FDTD_FLOAT[RLC_count];
-		v_RLC_b1 = new FDTD_FLOAT[RLC_count];
-		v_RLC_b2 = new FDTD_FLOAT[RLC_count];
+		v_RLC_vv2 = new double[RLC_count];
+		v_RLC_vj1 = new double[RLC_count];
+		v_RLC_vj2 = new double[RLC_count];
+		v_RLC_vvd = new double[RLC_count];
+		v_RLC_ib0 = new double[RLC_count];
+		v_RLC_b1 = new double[RLC_count];
+		v_RLC_b2 = new double[RLC_count];
 
 		v_RLC_pos = new unsigned int*[3];
 		for (unsigned int dIdx = 0 ; dIdx < 3 ; ++dIdx)

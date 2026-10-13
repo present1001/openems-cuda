@@ -59,6 +59,11 @@ The current backend supports:
 - Existing probes, field dumps, NF2FF, SAR, and other processing that consumes
   the standard CPU engine interface.
 
+CPU and CUDA lumped RLC coefficients and auxiliary history use double precision
+to avoid a reproduced small-timestep instability. Domain fields retain their
+existing precision. See the [RLC precision regression](openEMS/FDTD/tests/RLC_PRECISION.md)
+for the reproducer, measured results, and validation limits.
+
 The following active features are deliberately rejected by the CUDA engine:
 
 - Cylindrical coordinates and cylindrical multigrid.
@@ -248,6 +253,16 @@ parallel resistor, a series RLC load, sinusoidal TFSF excitation, and
 steady-state detection. On the original development system, probe timestamps
 matched exactly and the largest observed probe error was approximately
 `1.34e-5` relative to the CPU peak.
+
+For the longer RLC stability reproducer (23.26 ns, supplied XML):
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python3 openEMS/FDTD/tests/run_rlc_precision.py \
+  build/rlc-precision-run --binary build/openems-cuda/openEMS
+```
+
+This fixture has separate stability and waveform-error limits, described in
+[`RLC_PRECISION.md`](openEMS/FDTD/tests/RLC_PRECISION.md).
 
 ### Metal smoke test (completed on macOS)
 

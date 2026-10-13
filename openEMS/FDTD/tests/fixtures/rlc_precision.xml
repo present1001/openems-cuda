@@ -1,0 +1,89 @@
+<?xml version='1.0' encoding='utf-8'?>
+<openEMS>
+    <FDTD NumberOfTimesteps="786432" endCriteria="0" OverSampling="512" TimeStepMethod="3" TimeStep="2.9573589938223013e-14">
+        <Excitation Type="0" f0="9.5e+08" fc="4.5e+08" />
+        <BoundaryCond xmin="PEC" xmax="PEC" ymin="PEC" ymax="PEC" zmin="PEC" zmax="PEC" />
+    </FDTD>
+    <ContinuousStructure CoordSystem="0">
+        <RectilinearGrid DeltaUnit="0.001" CoordSystem="0">
+            <XLines Qty="17">-0.75,-0.625,-0.5,-0.375,-0.25,-0.125,0,0.125,0.25,0.375,0.5,0.625,0.75,0.875,1,1.125,1.25</XLines>
+            <YLines Qty="13">-1.2,-1,-0.8,-0.6,-0.4,-0.2,0,0.2,0.4,0.6,0.8,1,1.2</YLines>
+            <ZLines Qty="13">-0.12,-0.1,-0.08,-0.06,-0.04,-0.02,0,0.02,0.04,0.06,0.08,0.1,0.12</ZLines>
+        </RectilinearGrid>
+        <BackgroundMaterial Epsilon="1" Mue="1" Kappa="0" Sigma="0" />
+        <ParameterSet />
+        <Properties>
+            <Excitation ID="0" Name="gaussian_drive" Number="0" Enabled="1" Frequency="0.000000e+00" Delay="0.000000e+00" Type="0" Excite="1.000000e+00,0.000000e+00,0.000000e+00" PropDir="0.000000e+00,0.000000e+00,0.000000e+00">
+                <FillColor R="103" G="198" B="105" a="255" />
+                <EdgeColor R="103" G="198" B="105" a="255" />
+                <Primitives>
+                    <Box Priority="0">
+                        <P1 X="0.000000e+00" Y="0.000000e+00" Z="0.000000e+00" />
+                        <P2 X="3.750000e-01" Y="0.000000e+00" Z="0.000000e+00" />
+                    </Box>
+                </Primitives>
+                <Weight X="1.000000e+00" Y="1.000000e+00" Z="1.000000e+00" />
+            </Excitation>
+            <LumpedElement ID="1" Name="series_rlc" Direction="0" Caps="0" R="1.662729e-01" C="1.000000e-05" L="3.750881e-10" LEtype="1.000000e+00">
+                <FillColor R="115" G="81" B="255" a="255" />
+                <EdgeColor R="115" G="81" B="255" a="255" />
+                <Primitives>
+                    <Box Priority="26">
+                        <P1 X="0.000000e+00" Y="0.000000e+00" Z="0.000000e+00" />
+                        <P2 X="3.750000e-01" Y="0.000000e+00" Z="0.000000e+00" />
+                    </Box>
+                </Primitives>
+            </LumpedElement>
+            <Metal ID="2" Name="rail_0.0">
+                <FillColor R="74" G="236" B="41" a="255" />
+                <EdgeColor R="74" G="236" B="41" a="255" />
+                <Primitives>
+                    <Box Priority="20">
+                        <P1 X="0.000000e+00" Y="-2.000000e-01" Z="-2.000000e-02" />
+                        <P2 X="0.000000e+00" Y="6.000000e-01" Z="2.000000e-02" />
+                    </Box>
+                </Primitives>
+            </Metal>
+            <Metal ID="3" Name="rail_0.375">
+                <FillColor R="205" G="186" B="171" a="255" />
+                <EdgeColor R="205" G="186" B="171" a="255" />
+                <Primitives>
+                    <Box Priority="20">
+                        <P1 X="3.750000e-01" Y="-2.000000e-01" Z="-2.000000e-02" />
+                        <P2 X="3.750000e-01" Y="6.000000e-01" Z="2.000000e-02" />
+                    </Box>
+                </Primitives>
+            </Metal>
+            <LumpedElement ID="4" Name="external_parallel_C" Direction="0" Caps="0" C="1.000000e-10" LEtype="0.000000e+00">
+                <FillColor R="242" G="251" B="227" a="255" />
+                <EdgeColor R="242" G="251" B="227" a="255" />
+                <Primitives>
+                    <Box Priority="26">
+                        <P1 X="0.000000e+00" Y="4.000000e-01" Z="0.000000e+00" />
+                        <P2 X="3.750000e-01" Y="4.000000e-01" Z="0.000000e+00" />
+                    </Box>
+                </Primitives>
+            </LumpedElement>
+            <ProbeBox ID="5" Name="load_voltage" Visible="0" Number="0" Type="0" Weight="1" NormDir="-1" StartTime="0" StopTime="0">
+                <FillColor R="70" G="124" B="194" a="255" />
+                <EdgeColor R="70" G="124" B="194" a="255" />
+                <Primitives>
+                    <Box Priority="0">
+                        <P1 X="0.000000e+00" Y="0.000000e+00" Z="0.000000e+00" />
+                        <P2 X="3.750000e-01" Y="0.000000e+00" Z="0.000000e+00" />
+                    </Box>
+                </Primitives>
+            </ProbeBox>
+            <ProbeBox ID="6" Name="field_voltage" Visible="0" Number="0" Type="0" Weight="1" NormDir="-1" StartTime="0" StopTime="0">
+                <FillColor R="84" G="248" B="27" a="255" />
+                <EdgeColor R="84" G="248" B="27" a="255" />
+                <Primitives>
+                    <Box Priority="0">
+                        <P1 X="0.000000e+00" Y="4.000000e-01" Z="4.000000e-02" />
+                        <P2 X="3.750000e-01" Y="4.000000e-01" Z="4.000000e-02" />
+                    </Box>
+                </Primitives>
+            </ProbeBox>
+        </Properties>
+    </ContinuousStructure>
+</openEMS>

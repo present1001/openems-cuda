@@ -27,8 +27,8 @@ Engine_Ext_LumpedRLC::Engine_Ext_LumpedRLC(Operator_Ext_LumpedRLC* op_ext_RLC) :
 	// Local pointer of the operator.
 	m_Op_Ext_RLC = op_ext_RLC;
 
-	v_Vdn		= new FDTD_FLOAT*[3];
-	v_Jn		= new FDTD_FLOAT*[3];
+	v_Vdn		= new double*[3];
+	v_Jn		= new double*[3];
 	v_Il		= NULL;
 
 	// No additional allocations are required if there are no actual lumped elements.
@@ -36,15 +36,15 @@ Engine_Ext_LumpedRLC::Engine_Ext_LumpedRLC(Operator_Ext_LumpedRLC* op_ext_RLC) :
 		return;
 
 	// Initialize ADE containers for currents and voltages
-	v_Il		= new FDTD_FLOAT[m_Op_Ext_RLC->RLC_count];
+	v_Il		= new double[m_Op_Ext_RLC->RLC_count];
 
 	for (unsigned int posIdx = 0 ; posIdx < m_Op_Ext_RLC->RLC_count ; ++posIdx)
 		v_Il[posIdx] 	= 0.0;
 
 	for (unsigned int k = 0 ; k < 3 ; k++)
 	{
-		v_Vdn[k] = new FDTD_FLOAT[m_Op_Ext_RLC->RLC_count];
-		v_Jn[k] = new FDTD_FLOAT[m_Op_Ext_RLC->RLC_count];
+		v_Vdn[k] = new double[m_Op_Ext_RLC->RLC_count];
+		v_Jn[k] = new double[m_Op_Ext_RLC->RLC_count];
 
 		for (unsigned int posIdx = 0 ; posIdx < m_Op_Ext_RLC->RLC_count ; ++posIdx)
 		{
@@ -88,7 +88,7 @@ void Engine_Ext_LumpedRLC::DoPreVoltageUpdates()
 		return;
 
 	// Iterate Vd containers
-	FDTD_FLOAT	*v_temp;
+	double	*v_temp;
 	v_temp = v_Vdn[2];
 	v_Vdn[2] = v_Vdn[1];
 	v_Vdn[1] = v_Vdn[0];
@@ -111,7 +111,7 @@ void Engine_Ext_LumpedRLC::Apply2VoltagesImpl(EngType* eng)
 	int *dir = m_Op_Ext_RLC->v_RLC_dir;
 
 	// Iterate J containers
-	FDTD_FLOAT	*v_temp;
+	double	*v_temp;
 	v_temp = v_Jn[2];
 	v_Jn[2] = v_Jn[1];
 	v_Jn[1] = v_Jn[0];

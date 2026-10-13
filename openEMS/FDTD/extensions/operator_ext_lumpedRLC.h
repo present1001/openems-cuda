@@ -62,19 +62,21 @@ protected:
 	Operator_Ext_LumpedRLC(Operator* op, Operator_Ext_LumpedRLC* op_ext);
 
 	// ADE update coefficients, array setup: coeff[mesh_pos_index]
+	// Keep RLC coefficients and history in double: small timesteps can make
+	// the recurrence unstable when rounded to the field precision.
 
 	// Parallel circuit coefficients
-	FDTD_FLOAT		*v_RLC_ilv;
-	FDTD_FLOAT		*v_RLC_i2v;
+	double		*v_RLC_ilv;
+	double		*v_RLC_i2v;
 
 	// Series circuit coefficients
-	FDTD_FLOAT		*v_RLC_vv2;		// Coefficient for [n-2] time of Vd update in Vd equation
-	FDTD_FLOAT		*v_RLC_vj1;		// Coefficient for [n-1] time of J update in Vd equation
-	FDTD_FLOAT		*v_RLC_vj2;		// Coefficient for [n-2] time of J update in Vd equation
-	FDTD_FLOAT		*v_RLC_vvd;		// Coefficient to multiply all Vd in the Vd update equation
-	FDTD_FLOAT		*v_RLC_ib0;		// Inverse of beta_0
-	FDTD_FLOAT		*v_RLC_b1;		// beta_1
-	FDTD_FLOAT		*v_RLC_b2;		// beta_2
+	double		*v_RLC_vv2;		// Coefficient for [n-2] time of Vd update in Vd equation
+	double		*v_RLC_vj1;		// Coefficient for [n-1] time of J update in Vd equation
+	double		*v_RLC_vj2;		// Coefficient for [n-2] time of J update in Vd equation
+	double		*v_RLC_vvd;		// Coefficient to multiply all Vd in the Vd update equation
+	double		*v_RLC_ib0;		// Inverse of beta_0
+	double		*v_RLC_b1;		// beta_1
+	double		*v_RLC_b2;		// beta_2
 
 	// Additional containers
 	int				*v_RLC_dir;
