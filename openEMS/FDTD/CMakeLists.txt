@@ -14,8 +14,14 @@ if (OPENEMS_ENABLE_CUDA)
      )
 endif()
 
+if(OPENEMS_ENABLE_METAL)
+ set(METAL_SOURCES
+ ${CMAKE_CURRENT_SOURCE_DIR}/operator_metal.cpp
+ ${CMAKE_CURRENT_SOURCE_DIR}/engine_metal.mm)
+endif()
 set(SOURCES
   ${SOURCES}
+  ${METAL_SOURCES}
   ${MPI_SOURCES}
   ${CUDA_SOURCES}
   ${CMAKE_CURRENT_SOURCE_DIR}/engine.cpp

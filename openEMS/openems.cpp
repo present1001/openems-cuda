@@ -29,6 +29,9 @@
 #ifdef OPENEMS_ENABLE_CUDA
 #include "FDTD/operator_cuda.h"
 #endif
+#ifdef OPENEMS_ENABLE_METAL
+#include "FDTD/operator_metal.h"
+#endif
 #include "FDTD/extensions/operator_ext_excitation.h"
 #include "FDTD/extensions/operator_ext_tfsf.h"
 #include "FDTD/extensions/operator_ext_mur_abc.h"
@@ -253,7 +256,15 @@ void openEMS::collectCommandLineArguments()
 						cout << "openEMS - enabled multithreading" << endl;
 						m_engine = EngineType_Multithreaded;
 					}
-					else if (val == "cuda")
+					else if (val == "metal")
+                    {
+#ifdef OPENEMS_ENABLE_METAL
+                        m_engine = EngineType_Metal;
+#else
+                        throw std::runtime_error("--engine=metal requires OPENEMS_ENABLE_METAL");
+#endif
+                    }
+                    else if (val == "cuda")
 					{
 #ifdef OPENEMS_ENABLE_CUDA
 						cout << "openEMS - enabled CUDA engine" << endl;
@@ -282,6 +293,7 @@ void openEMS::collectCommandLineArguments()
 			"operator + sse vector extensions + multithreading\n"
 #endif
 			"  cuda: \tnative NVIDIA CUDA engine (opt-in build)\n"
+			"  metal: \tApple Metal FDTD engine (opt-in build)\n"
 		)
 		(
 			"cuda-device",
@@ -801,7 +813,7 @@ void openEMS::SetupCylinderMultiGrid(std::string val)
 
 bool openEMS::SetupOperator()
 {
-	if (CylinderCoords && m_engine == EngineType_CUDA)
+	if (CylinderCoords && (m_engine == EngineType_CUDA || m_engine == EngineType_Metal))
 	{
 		cerr << "openEMS::SetupOperator: CUDA currently supports Cartesian grids only." << endl;
 		return false;
@@ -829,7 +841,15 @@ bool openEMS::SetupOperator()
 	{
 		FDTD_Op = Operator_Multithread::New(m_engine_numThreads);
 	}
-	else if (m_engine == EngineType_CUDA)
+	else if (m_engine == EngineType_Metal)
+    {
+#ifdef OPENEMS_ENABLE_METAL
+        FDTD_Op = Operator_Metal::New();
+#else
+        return false;
+#endif
+    }
+    else if (m_engine == EngineType_CUDA)
 	{
 #ifdef OPENEMS_ENABLE_CUDA
 		FDTD_Op = Operator_CUDA::New(m_cuda_device, m_cuda_debug_sync);
