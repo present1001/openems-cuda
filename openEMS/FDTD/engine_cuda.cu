@@ -396,10 +396,10 @@ __global__ void UPMLPostKernel(
 }
 
 __global__ void LumpedRLCPreVoltageKernel(
-	FDTD_FLOAT* inductorCurrent,
-	const FDTD_FLOAT* previousVoltage,
-	const FDTD_FLOAT* currentToVoltage,
-	const FDTD_FLOAT* inductorToVoltage,
+	double* inductorCurrent,
+	const double* previousVoltage,
+	const double* currentToVoltage,
+	const double* inductorToVoltage,
 	unsigned int count)
 {
 	const unsigned int entry = blockIdx.x * blockDim.x + threadIdx.x;
@@ -412,27 +412,27 @@ __global__ void LumpedRLCPreVoltageKernel(
 __global__ void LumpedRLCApplyVoltageKernel(
 	FDTD_FLOAT* field,
 	const size_t* indices,
-	FDTD_FLOAT* inductorCurrent,
-	FDTD_FLOAT* voltage0,
-	const FDTD_FLOAT* voltage1,
-	const FDTD_FLOAT* voltage2,
-	FDTD_FLOAT* current0,
-	const FDTD_FLOAT* current1,
-	const FDTD_FLOAT* current2,
-	const FDTD_FLOAT* vv2,
-	const FDTD_FLOAT* vj1,
-	const FDTD_FLOAT* vj2,
-	const FDTD_FLOAT* vvd,
-	const FDTD_FLOAT* ib0,
-	const FDTD_FLOAT* b1,
-	const FDTD_FLOAT* b2,
+	double* inductorCurrent,
+	double* voltage0,
+	const double* voltage1,
+	const double* voltage2,
+	double* current0,
+	const double* current1,
+	const double* current2,
+	const double* vv2,
+	const double* vj1,
+	const double* vj2,
+	const double* vvd,
+	const double* ib0,
+	const double* b1,
+	const double* b2,
 	unsigned int count)
 {
 	const unsigned int entry = blockIdx.x * blockDim.x + threadIdx.x;
 	if (entry >= count)
 		return;
 
-	FDTD_FLOAT voltage = field[indices[entry]];
+	double voltage = field[indices[entry]];
 	voltage = vvd[entry] * (
 		voltage - inductorCurrent[entry]
 		+ vv2[entry] * voltage2[entry]
@@ -522,18 +522,18 @@ struct Engine_CUDA::Impl
 	struct LumpedRLCData
 	{
 		size_t* indices;
-		FDTD_FLOAT* ilv;
-		FDTD_FLOAT* i2v;
-		FDTD_FLOAT* vv2;
-		FDTD_FLOAT* vj1;
-		FDTD_FLOAT* vj2;
-		FDTD_FLOAT* vvd;
-		FDTD_FLOAT* ib0;
-		FDTD_FLOAT* b1;
-		FDTD_FLOAT* b2;
-		FDTD_FLOAT* inductorCurrent;
-		FDTD_FLOAT* voltage[3];
-		FDTD_FLOAT* current[3];
+		double* ilv;
+		double* i2v;
+		double* vv2;
+		double* vj1;
+		double* vj2;
+		double* vvd;
+		double* ib0;
+		double* b1;
+		double* b2;
+		double* inductorCurrent;
+		double* voltage[3];
+		double* current[3];
 		unsigned int count;
 
 		LumpedRLCData() : indices(NULL), ilv(NULL), i2v(NULL), vv2(NULL),
@@ -1126,16 +1126,16 @@ void Engine_CUDA::UploadLumpedRLC(Operator_Ext_LumpedRLC* lumpedRLC)
 	DeviceAllocateAndCopy(data.b2, lumpedRLC->v_RLC_b2, data.count);
 	DeviceAllocate(data.inductorCurrent, data.count);
 	CudaCheck(cudaMemset(data.inductorCurrent, 0,
-		data.count * sizeof(FDTD_FLOAT)), "lumped-RLC current initialization");
+		data.count * sizeof(double)), "lumped-RLC current initialization");
 	for (unsigned int n = 0; n < 3; ++n)
 	{
 		DeviceAllocate(data.voltage[n], data.count);
 		DeviceAllocate(data.current[n], data.count);
 		CudaCheck(cudaMemset(data.voltage[n], 0,
-			data.count * sizeof(FDTD_FLOAT)),
+			data.count * sizeof(double)),
 			"lumped-RLC voltage-state initialization");
 		CudaCheck(cudaMemset(data.current[n], 0,
-			data.count * sizeof(FDTD_FLOAT)),
+			data.count * sizeof(double)),
 			"lumped-RLC current-state initialization");
 	}
 }
@@ -1207,7 +1207,7 @@ bool Engine_CUDA::IterateTS(unsigned int iterTS)
 		Impl::LumpedRLCData& lumpedRLC = m_Impl->lumpedRLC;
 		if (lumpedRLC.count != 0)
 		{
-			FDTD_FLOAT* temporary = lumpedRLC.voltage[2];
+			double* temporary = lumpedRLC.voltage[2];
 			lumpedRLC.voltage[2] = lumpedRLC.voltage[1];
 			lumpedRLC.voltage[1] = lumpedRLC.voltage[0];
 			lumpedRLC.voltage[0] = temporary;
@@ -1262,7 +1262,7 @@ bool Engine_CUDA::IterateTS(unsigned int iterTS)
 
 		if (lumpedRLC.count != 0)
 		{
-			FDTD_FLOAT* temporary = lumpedRLC.current[2];
+			double* temporary = lumpedRLC.current[2];
 			lumpedRLC.current[2] = lumpedRLC.current[1];
 			lumpedRLC.current[1] = lumpedRLC.current[0];
 			lumpedRLC.current[0] = temporary;

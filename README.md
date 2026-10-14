@@ -63,6 +63,11 @@ The current backend supports:
 - Existing probes, field dumps, NF2FF, SAR, and other processing that consumes
   the standard CPU engine interface.
 
+CPU and CUDA lumped RLC coefficients and auxiliary history use double precision
+to avoid a reproduced small-timestep instability. Domain fields retain their
+existing precision. See the [RLC precision regression](openEMS/FDTD/tests/RLC_PRECISION.md)
+for the reproducer, measured results, and validation limits.
+
 The following active features are deliberately rejected by the CUDA engine:
 
 - Cylindrical coordinates and cylindrical multigrid.
@@ -253,6 +258,16 @@ steady-state detection. On the original development system, probe timestamps
 matched exactly and the largest observed probe error was approximately
 `1.34e-5` relative to the CPU peak.
 
+For the longer RLC stability reproducer (23.26 ns, supplied XML):
+
+```bash
+CUDA_VISIBLE_DEVICES=0 python3 openEMS/FDTD/tests/run_rlc_precision.py \
+  build/rlc-precision-run --binary build/openems-cuda/openEMS
+```
+
+This fixture has separate stability and waveform-error limits, described in
+[`RLC_PRECISION.md`](openEMS/FDTD/tests/RLC_PRECISION.md).
+
 ### Metal smoke test (completed on macOS)
 
 The following smoke test compiles the Metal backend's C++/Objective-C++
@@ -311,8 +326,8 @@ and history in double precision removed this growth in the tested cases.
 The corrective engine code and public synthetic reproducer are in
 [`codex/rlc-double-stability`](https://github.com/present1001/openems-cuda/tree/codex/rlc-double-stability),
 commit [`6bd4d0e`](https://github.com/present1001/openems-cuda/commit/6bd4d0e5f561ae925fb12c011d0be6f3d748bbbf).
-**This README update does not merge that engine patch into `main`.** Select
-the patched revision explicitly when reproducing the results below.
+The engine patch is now **merged into `main`**. The pinned revision below
+retains the exact public reproducer used for the recorded CPU/CUDA results.
 
 #### Recorded environment
 
