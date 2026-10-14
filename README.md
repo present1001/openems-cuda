@@ -16,6 +16,10 @@ original CPU engines as the default.
 > [upstream project](https://github.com/thliebig/openEMS-Project) for the
 > maintained CPU implementation and general documentation.
 
+The [Linux CUDA 12.6 validation](#linux-cuda-126-validation) below records the
+October 2026 RLC instability investigation, corrective patch, reproduction
+commands, and subsequent large-model runs.
+
 ## What changed from upstream
 
 The fork is based on `openEMS-Project` commit
@@ -298,6 +302,202 @@ Base CUDA device storage is approximately 72 bytes per Yee cell: six field
 components and twelve update-coefficient components stored as `float`. UPML,
 dynamic lumped elements, CPU-side operator data, and the host processing mirror
 require additional memory.
+
+### Linux CUDA 12.6 validation
+
+Tests conducted on **2026-10-13–14 (KST)** reproduced unphysical late-time
+amplification in both CPU and CUDA RLC updates. Keeping the RLC coefficients
+and history in double precision removed this growth in the tested cases.
+The corrective engine code and public synthetic reproducer are in
+[`codex/rlc-double-stability`](https://github.com/present1001/openems-cuda/tree/codex/rlc-double-stability),
+commit [`6bd4d0e`](https://github.com/present1001/openems-cuda/commit/6bd4d0e5f561ae925fb12c011d0be6f3d748bbbf).
+**This README update does not merge that engine patch into `main`.** Select
+the patched revision explicitly when reproducing the results below.
+
+#### Recorded environment
+
+| Item | Tested configuration |
+| --- | --- |
+| OS / kernel | Ubuntu 20.04.6 LTS, x86_64; Linux 5.15.0-139-generic |
+| CPU / RAM | AMD Ryzen Threadripper PRO 5975WX, 32 cores / 64 logical CPUs; approximately 251.5 GiB OS-visible RAM |
+| GPUs | Four NVIDIA GeForce RTX 4090 cards, 24,564 MiB reported per card |
+| NVIDIA driver | 580.126.09 |
+| CUDA compiler | Toolkit 12.6, `nvcc` 12.6.68; existing `/usr/local/cuda-12.6/bin/nvcc` |
+| Build | GCC 9.4.0, CMake 3.31.6, Release, CUDA architecture `89` |
+| Python | System Python 3.8.10; application environment Python 3.11.17; the public RLC runner needs only Python 3.8+ and its standard library |
+| Resource policy | Application jobs shared a CPU-time limit of 80% of 64 logical CPUs and a RAM limit of 80% of available memory sampled at launch; the production pair used 25 CPU workers per job |
+
+The existing system CUDA and driver installations were retained. An `nvcc`
+missing from a noninteractive SSH `PATH` does not imply that the toolkit is
+absent: the compiler path above was recorded in the build cache. The CUDA
+version displayed by `nvidia-smi` is not the compiler version used for a build.
+These are separate measurements from the CUDA 13.3 benchmark above.
+
+#### Amplification case, diagnosis, and changes
+
+One initial large-model CUDA run developed nonfinite energy at timestep
+674,523. Shorter reproductions could finish with exit code zero and finite
+probes while already growing unphysically. Completion status alone was
+therefore insufficient to qualify a result.
+
+The controlled CPU reference was the **same fork's `basic` engine**, not a
+different upstream CPU installation. Tests compared identical XML inputs,
+examined excitation, probe timestamps and amplitudes, and then changed RLC
+precision while preserving the model and timestep. Boundary conditions were
+tested separately. Reducing the timestep alone did not resolve the observed
+instability; some trials grew faster.
+Unexcited trials and Dirac trials with uninitialized excitation parameters
+were excluded. Unsupported CUDA boundary options were setup failures, not
+evidence of numerical divergence.
+
+| Changed code in `6bd4d0e` | Correction |
+| --- | --- |
+| `operator_ext_lumpedRLC.h/.cpp` | Store series/parallel RLC coefficients in `double`; retain double precision in the grid-capacitance temporary used during construction. |
+| `engine_ext_lumpedRLC.h/.cpp` | Store inductor current and the three-level voltage/current history in `double`, including allocations and history-buffer rotation. |
+| `engine_cuda.cu` | Use double RLC kernel arguments, arithmetic and device buffers; update typed allocations/copies, zero-initialization byte counts and buffer-rotation pointers consistently. |
+| `FDTD/tests/run_rlc_precision.py` and synthetic XML fixture | Check completed steps, finite and excited probes, timestamp coverage, late-time decay and CPU/CUDA waveform error; return nonzero when a check fails. |
+
+The ordinary E/H arrays and field-update coefficients remain single precision.
+The tests changed RLC coefficient and state precision together, so they do not
+separate the contribution of each. A separate small-domain absorbing-boundary
+instability was observed even without the suspect RLC branch; that issue was
+not fixed or explained by this patch. The result is a demonstrated RLC
+stability correction, not a universal cure for boundary or discretization errors.
+
+#### Public, reproducible CPU/CUDA test
+
+The synthetic fixture uses **17 × 13 × 13 = 2,873 cells**, PEC boundaries,
+Gaussian excitation, and a timestep of approximately **29.5736 fs**. No
+application PCB or geometry file is needed. At 262,144 steps (7.75 ns), the
+recorded maximum absolute load voltages were:
+
+| Engine | Original float RLC | Double RLC coefficients/history |
+| --- | ---: | ---: |
+| CPU `basic` | 1.93283e15 V | 1.19702e-4 V |
+| CUDA | 1.86236e15 V | 1.19717e-4 V |
+
+Both patched engines also completed **786,432 steps (23.26 ns)** with finite,
+decaying probes. Error is normalized by the CPU waveform's peak:
+
+| Probe | Maximum error | RMS error |
+| --- | ---: | ---: |
+| Load voltage | 0.122154% | 0.027915% |
+| Field voltage | 0.122619% | 0.035961% |
+
+The runner requires maximum/RMS error at most 0.2% / 0.05%, a peak between
+1 microvolt and 1 millivolt, and a final-tenth peak below 25% of the full peak.
+These amplitude/decay limits apply to this fixture only. Rechecking archived
+patched output passed; original float output was rejected. Full fixture and
+validation details are in
+[`RLC_PRECISION.md`](https://github.com/present1001/openems-cuda/blob/6bd4d0e5f561ae925fb12c011d0be6f3d748bbbf/openEMS/FDTD/tests/RLC_PRECISION.md).
+
+To reproduce, use a fresh clone and existing compatible dependencies. Set
+`OPENEMS_DEPS` to the prefix containing CSXCAD and fparser, and make a suitable
+CMake available in this shell. This example selects the installed toolkit
+explicitly without changing system defaults:
+
+```bash
+git clone --branch codex/rlc-double-stability \
+  https://github.com/present1001/openems-cuda.git openems-rlc-validation
+cd openems-rlc-validation
+git checkout --detach 6bd4d0e5f561ae925fb12c011d0be6f3d748bbbf
+export CUDA_ROOT=/usr/local/cuda-12.6
+export OPENEMS_DEPS=/path/to/existing/dependency-prefix
+
+cmake -S openEMS -B build/rlc-double \
+  -DCMAKE_BUILD_TYPE=Release -DOPENEMS_ENABLE_CUDA=ON \
+  -DFPARSER_ROOT_DIR="$OPENEMS_DEPS" -DCSXCAD_ROOT_DIR="$OPENEMS_DEPS" \
+  -DCMAKE_CUDA_COMPILER="$CUDA_ROOT/bin/nvcc" \
+  -DCUDAToolkit_ROOT="$CUDA_ROOT" -DCMAKE_CUDA_ARCHITECTURES=89
+cmake --build build/rlc-double --target openEMS_bin --parallel 4
+export LD_LIBRARY_PATH="$PWD/build/rlc-double:$OPENEMS_DEPS/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+ldd build/rlc-double/openEMS | grep libopenEMS
+CUDA_VISIBLE_DEVICES=0 python3 openEMS/FDTD/tests/run_rlc_precision.py \
+  build/rlc-check --binary build/rlc-double/openEMS
+```
+
+Verify that `ldd` resolves this build's `libopenEMS`, not an older installation.
+Use a new output directory for a new run. To recheck saved output without
+restarting the solver, use the same runner with `build/rlc-check --check-existing`.
+For a float control, build baseline commit `568b4454e4b4ee06beb671eb72bfdc1db67c28ca`
+separately and pass that binary to the patched runner with the same fixture;
+its stability checks are expected to reject the unstable output.
+
+#### Original-grid boundary control and longer runs
+
+A private application model was then checked without simplifying its
+**365 × 501 × 71 = 12,983,415-cell** grid. The bounded CUDA comparison used
+271,620 steps (8.03278 ns). Grid, materials, geometry and excitation were held
+fixed; the PEC control replaced only the six `PML_8` boundary settings.
+The float/PML row reused the matching interval of the archived original run;
+the other three cases were newly executed. Probe sample times matched.
+
+| RLC precision / boundary | Final logged energy | Fitted energy multiplier per 10,000 steps after excitation |
+| --- | ---: | ---: |
+| Float / PML_8 | 1.28e-3 | 7.186 (growth) |
+| Float / PEC | 4.40e-3 | 7.251 (growth) |
+| Double / PML_8 | 1.05e-15 | 0.597 (decay) |
+| Double / PEC | 2.95e-14 | 0.900 (decay) |
+
+Growth persisted with PEC, so PML was not necessary for this failure.
+The corrected engine decayed with the original PML_8. This bounded test reached
+its step limit; it did not establish long-time or spatial convergence.
+
+Two longer cases subsequently ran concurrently on GPU 0 and GPU 1 with the
+corrected engine, unchanged grid and six-sided PML_8. Both used a maximum of
+2,000,000 steps and an energy stopping threshold of `1e-7` (-70 dB).
+Case labels below are anonymized:
+
+| Case | Final steps | Simulated time | Final energy (dB) | Solver time | Total job time |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| P1 / GPU 0 | 1,662,918 | 49.17847 ns | -70.10546 | 6,276.52 s | 8,168.52 s |
+| P2 / GPU 1 | 510,042 | 15.08379 ns | -70.09948 | 1,925.15 s | 2,943.64 s |
+
+Both reached the requested energy criterion with finite probes and
+postprocessed output. P1 passed the application's temporal plateau checks;
+P2 did not meet its 20 ns minimum observation requirement. **Neither case
+established spatial mesh convergence.** The pair's elapsed time was about
+2 h 16 min; total job time includes setup and postprocessing, unlike solver
+time. No matched CPU production run was completed, so these timings do not
+establish a CPU-to-GPU speedup.
+
+#### Multi-GPU execution and evidence scope
+
+This backend uses **one GPU per solver process**. Multiple GPUs run independent
+models; a single model is not split across four cards. GPU 0/1 routing was
+checked against the small patched reference, with identical sampled values.
+The bounded boundary comparison also used GPU 2; GPU 3 was available but was
+not used for the reported production pair.
+
+For separate jobs with already-generated XML, the following is a launch
+pattern, not a shipped application test. Run each model from a separate output
+directory. `CUDA_VISIBLE_DEVICES` maps the selected physical GPU to logical
+device zero inside that process:
+
+```bash
+solver="$PWD/build/rlc-double/openEMS"
+# Place independent inputs at jobs/case0/model.xml and jobs/case1/model.xml.
+(cd jobs/case0 && CUDA_VISIBLE_DEVICES=0 "$solver" model.xml \
+  --engine=cuda --cuda-device=0 --numThreads=25 > solver.log 2>&1) & p0=$!
+(cd jobs/case1 && CUDA_VISIBLE_DEVICES=1 "$solver" model.xml \
+  --engine=cuda --cuda-device=0 --numThreads=25 > solver.log 2>&1) & p1=$!
+rc=0
+wait "$p0" || rc=1
+wait "$p1" || rc=1
+test "$rc" -eq 0
+```
+
+This example does not implement the server's aggregate CPU/RAM limits or the
+application's convergence checks. Those orchestration tools remain external
+to this repository. Check energy, finite probes and observation coverage even
+when both processes exit zero; use the synthetic runner for the public test.
+
+Only aggregate measurements from the private models are published here.
+PCB/schematic files, extracted meshes or model XML, layout images, private
+logs, raw RF responses, archives, server addresses and account details are
+excluded. The synthetic RLC fixture is the public reproducer; private-model
+results are reported observations and cannot be independently regenerated
+from this repository alone. Metal was not evaluated by these Linux tests.
 
 ## Repository layout and provenance
 
