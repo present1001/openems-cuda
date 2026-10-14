@@ -26,7 +26,8 @@ CUDA_VISIBLE_DEVICES=0 python3 openEMS/FDTD/tests/run_rlc_precision.py \
 The runner uses one CPU thread, runs `basic` then `cuda`, and selects the first
 visible CUDA device. Use `--engine basic` for a CPU-only check. It inherits
 `LD_LIBRARY_PATH`; ensure that it resolves the intended build's `libopenEMS`,
-rather than an older installed copy. Each subprocess has a five-minute timeout.
+rather than an older installed copy. Each subprocess has a five-minute timeout
+by default; `--timeout SECONDS` overrides it.
 For example, with dependencies already installed in `$OPENEMS_DEPS`:
 
 ```sh
@@ -61,6 +62,30 @@ unexcited output. Existing logs/probes can be checked without starting a solver:
 ```sh
 python3 openEMS/FDTD/tests/run_rlc_precision.py build/rlc-precision-run --check-existing
 ```
+
+## Experimental Metal comparison
+
+With a complete macOS build configured using `OPENEMS_ENABLE_METAL=ON`, current
+`main` also supports the same fixture with CPU and Metal:
+
+```sh
+python3 openEMS/FDTD/tests/run_rlc_precision.py build/rlc-metal \
+  --binary /absolute/path/to/openEMS --engine basic --engine metal --timeout 1800
+```
+
+The hybrid Metal backend calls the shared CPU RLC extension. Its coefficients
+and history stay double; only the E/H fields use float Metal buffers. The
+dispatcher now routes `Engine::METAL` to the host accessors instead of throwing
+`unknown engine`. The runner requires a Metal engine log marker and applies the
+same observation window and error limits as the CUDA comparison. Rechecking
+Metal output requires `--engine basic --engine metal --check-existing`.
+
+**Metal numerical validation is pending.** On 2026-10-14, the Metal backend and
+both RLC translation units compiled with AppleClang 17; host extension dispatch
+and Metal shader/pipeline smoke tests passed (2/2). The original dispatcher
+failed the same host test. These checks do not establish numerical stability
+or CPU/Metal waveform agreement. No Metal double-precision shader support is
+required by this host-side RLC correction.
 
 ## Recorded validation
 

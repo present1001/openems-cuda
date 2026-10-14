@@ -91,6 +91,10 @@ The CUDA and existing CPU backends are unchanged. Metal targets macOS
   field update, including excitation, boundaries, and material/lumped-element
   extensions. These paths have **not** been validated for numerical parity
   with the CPU solver.
+- RLC coefficients and history use double precision in that CPU extension.
+  Metal dispatches through the host field accessors; the GPU E/H arrays remain
+  float. This avoids the previous `unknown engine` exception in the shared
+  extension dispatcher without moving the RLC recurrence into Metal shaders.
 - The original CPU-side processing interface remains available for probes
   and other output processing. Cylindrical-grid models are rejected.
 
@@ -270,9 +274,9 @@ This fixture has separate stability and waveform-error limits, described in
 
 ### Metal smoke test (completed on macOS)
 
-The following smoke test compiles the Metal backend's C++/Objective-C++
-translation units, compiles its embedded Metal shaders on a Metal device, and
-creates both GPU compute pipelines:
+The following smoke test compiles the Metal backend and the shared double RLC
+translation units, checks host extension dispatch, and compiles the embedded
+Metal shaders/creates both GPU compute pipelines:
 
 ```bash
 cmake -S scripts/verification -B build/metal-compile-smoke
@@ -280,10 +284,12 @@ cmake --build build/metal-compile-smoke --parallel
 cmake --build build/metal-compile-smoke --target test
 ```
 
-**Observed result (October 2026):** AppleClang 17 backend compilation passed,
-and the Metal shader/pipeline runtime smoke test passed (1/1). This is
-**not a physical FDTD simulation test** and does not establish numerical parity
-or a performance benefit.
+**Observed result (2026-10-14):** AppleClang 17 compiled the backend and both
+RLC translation units. Host extension dispatch and Metal shader/pipeline tests
+passed (2/2). As a negative control, the same dispatcher test failed against
+the original header with `unknown engine`. This is **not a physical FDTD
+simulation test** and does not establish numerical parity or a performance
+benefit.
 
 ### CPU versus Metal numerical regression (not yet completed)
 
@@ -302,6 +308,12 @@ a resistor, series RLC, and sinusoidal TFSF. It compares CPU `basic` and
 `1e-4`). This comparison was prepared but **has not been executed
 successfully** because the complete solver dependencies were unavailable.
 Additional physics and performance benchmarks are still required.
+
+Current `main` also supports the 786,432-step RLC stability fixture with
+`--engine basic --engine metal`. It uses the same CPU comparison limits as
+CUDA and needs no Python bindings; a complete Metal-enabled solver is still
+required. See [the Metal RLC command](openEMS/FDTD/tests/RLC_PRECISION.md#experimental-metal-comparison).
+This longer CPU/Metal comparison has **not** been run.
 
 ### CUDA benchmark
 

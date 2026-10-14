@@ -55,6 +55,10 @@
 // In the future, all Extensions should probably be eventually converted be
 // templates.
 
+// Metal synchronizes Engine's host field arrays before these hooks. Its CPU
+// extensions (including double-precision RLC history) use the BASIC accessors.
+// CUDA owns separate device-side extensions and must not take this path.
+
 #define ENG_DISPATCH(impl) \
 	switch (m_Eng->GetType()) \
 	{ \
@@ -62,6 +66,7 @@
 		(this)->template impl<Engine_sse>((Engine_sse*) m_Eng); \
 		break; \
 	case Engine::BASIC: \
+	case Engine::METAL: \
 		(this)->template impl<Engine>((Engine*) m_Eng); \
 		break; \
 	default: \
@@ -78,6 +83,7 @@
 		(this)->template impl<Engine_sse>((Engine_sse*) m_Eng, __VA_ARGS__); \
 		break; \
 	case Engine::BASIC: \
+	case Engine::METAL: \
 		(this)->template impl<Engine>((Engine*) m_Eng, __VA_ARGS__); \
 		break; \
 	default: \

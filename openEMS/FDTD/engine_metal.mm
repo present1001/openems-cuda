@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <cstdint>
 #include <climits>
+#include <iostream>
 
 static const char* kShader = R"METAL(
 #include <metal_stdlib>
@@ -85,6 +86,8 @@ void Engine_Metal::Init(){
   memcpy([impl->vi contents],Op->vi_ptr->data(),impl->bytes);
   memcpy([impl->ii contents],Op->ii_ptr->data(),impl->bytes);
   memcpy([impl->iv contents],Op->iv_ptr->data(),impl->bytes);
+  std::cout << "Create Metal FDTD engine on device "
+            << [[impl->device name] UTF8String] << std::endl;
  }catch(...){Reset();throw;}
 }
 void Engine_Metal::Reset(){delete impl;impl=nullptr;Engine::Reset();}
@@ -113,6 +116,9 @@ void Engine_Metal::Step(bool voltage){
         [voltage?impl->v:impl->h contents],impl->bytes);
 }
 bool Engine_Metal::IterateTS(unsigned int count){
+ // RLC coefficients/history stay in the shared CPU extension as double.
+ // Step() transfers only float E/H fields and waits before the host hooks;
+ // the following Step(false) uploads the voltage corrected by the RLC hook.
  for(unsigned int i=0;i<count;++i){
   DoPreVoltageUpdates();Step(true);DoPostVoltageUpdates();Apply2Voltages();
   DoPreCurrentUpdates();Step(false);DoPostCurrentUpdates();Apply2Current();

@@ -38,6 +38,8 @@ def check_run(directory, engine, steps, dt):
         raise ValueError("The solver did not complete the requested timesteps")
     if engine == "cuda" and "Create CUDA FDTD engine on device" not in log:
         raise ValueError("CUDA execution was not confirmed")
+    if engine == "metal" and "Create Metal FDTD engine on device" not in log:
+        raise ValueError("Metal execution was not confirmed")
     if re.search(r"Energy:\s*~?\s*[+-]?(?:nan|inf)\b", log, re.IGNORECASE):
         raise ValueError("Nonfinite solver energy")
     metrics = {}
@@ -58,19 +60,20 @@ def check_run(directory, engine, steps, dt):
     return metrics
 
 
-def compare(cpu, cuda):
-    if len(cpu) != len(cuda):
-        raise ValueError("CPU/CUDA sample counts differ")
-    if any(abs(a[0] - b[0]) > 1e-18 for a, b in zip(cpu, cuda)):
-        raise ValueError("CPU/CUDA timestamps differ")
+def compare(cpu, gpu, backend="cuda"):
+    label = "CPU/" + backend.upper()
+    if len(cpu) != len(gpu):
+        raise ValueError(label + " sample counts differ")
+    if any(abs(a[0] - b[0]) > 1e-18 for a, b in zip(cpu, gpu)):
+        raise ValueError(label + " timestamps differ")
     peak = max(abs(value) for _, value in cpu)
     if peak == 0:
         raise ValueError("Unexcited CPU reference")
-    errors = [abs(a[1] - b[1]) / peak for a, b in zip(cpu, cuda)]
+    errors = [abs(a[1] - b[1]) / peak for a, b in zip(cpu, gpu)]
     maximum = max(errors)
     rms = math.sqrt(sum(error * error for error in errors) / len(errors))
     if maximum > 2e-3 or rms > 5e-4:
-        raise ValueError("CPU/CUDA waveform mismatch: max={}, rms={}".format(maximum, rms))
+        raise ValueError(label + " waveform mismatch: max={}, rms={}".format(maximum, rms))
     return dict(max_normalized_error=maximum, rms_normalized_error=rms)
 
 
@@ -78,13 +81,19 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("work_directory", type=Path)
     parser.add_argument("--binary", type=Path)
-    parser.add_argument("--engine", choices=("basic", "cuda"), action="append")
+    parser.add_argument("--engine", choices=("basic", "cuda", "metal"), action="append")
+    parser.add_argument("--timeout", type=float, default=300,
+                        help="Maximum seconds per solver process (default: 300)")
     parser.add_argument("--check-existing", action="store_true",
                         help="Check archived solver.log and probe files without running a solver")
     args = parser.parse_args()
     if not args.check_existing and (not args.binary or not args.binary.is_file()):
         parser.error("Provide --binary pointing to a built openEMS executable")
     engines = list(dict.fromkeys(args.engine or ("basic", "cuda")))
+    if "cuda" in engines and "metal" in engines:
+        parser.error("Run CUDA and Metal comparisons in separate output directories")
+    if not math.isfinite(args.timeout) or args.timeout <= 0:
+        parser.error("--timeout must be finite and greater than zero")
     work = args.work_directory.resolve()
     if args.check_existing and not work.is_dir():
         parser.error("The existing work directory does not exist")
@@ -109,17 +118,19 @@ def main():
                     command.append("--cuda-device=0")
                 with (directory / "solver.log").open("w") as log:
                     subprocess.run(command, cwd=directory, stdout=log,
-                                   stderr=subprocess.STDOUT, check=True, timeout=300)
+                                   stderr=subprocess.STDOUT, check=True, timeout=args.timeout)
             metrics = check_run(directory, engine, steps, dt)
             report["runs"][engine] = dict(passed=True, probes=metrics)
         except (OSError, ValueError, subprocess.SubprocessError) as error:
             report["runs"][engine] = dict(passed=False, error=str(error))
             failed = True
-    if not failed and set(engines) == {"basic", "cuda"}:
+    backend = "metal" if "metal" in engines else "cuda"
+    if not failed and set(engines) == {"basic", backend}:
+        report["comparison_engine"] = backend
         for name in PROBES:
             try:
                 report["comparisons"][name] = compare(
-                    read_probe(work / "basic" / name), read_probe(work / "cuda" / name))
+                    read_probe(work / "basic" / name), read_probe(work / backend / name), backend)
             except (OSError, ValueError) as error:
                 report["comparisons"][name] = dict(error=str(error))
                 failed = True

@@ -203,6 +203,13 @@ if (OPENEMS_BUILD_TESTS)
 		NAME numeric_phase_velocity_anisotropic_grid
 		COMMAND openems_test_numeric_phase_velocity
 	)
+	add_executable(openems_test_host_extension_dispatch
+		FDTD/tests/test_host_extension_dispatch.cpp
+	)
+	target_include_directories(openems_test_host_extension_dispatch PRIVATE
+		${openEMS_SOURCE_DIR}
+	)
+	add_test(NAME host_extension_dispatch COMMAND openems_test_host_extension_dispatch)
 endif()
 
 INCLUDE_DIRECTORIES( ${openEMS_SOURCE_DIR} )    #find tools

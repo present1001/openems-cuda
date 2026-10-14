@@ -13,6 +13,8 @@ find_path(BOOST_HEADERS boost/program_options.hpp
 add_library(metal_backend_compile OBJECT
     ../../openEMS/FDTD/operator_metal.cpp
     ../../openEMS/FDTD/engine_metal.mm
+    ../../openEMS/FDTD/extensions/engine_ext_lumpedRLC.cpp
+    ../../openEMS/FDTD/extensions/operator_ext_lumpedRLC.cpp
 )
 target_include_directories(metal_backend_compile PRIVATE
     ../../openEMS
@@ -33,6 +35,10 @@ target_link_libraries(metal_shader_smoke PRIVATE
     ${FOUNDATION_FRAMEWORK}
 )
 enable_testing()
+add_executable(metal_host_extension_dispatch
+    ../../openEMS/FDTD/tests/test_host_extension_dispatch.cpp)
+target_include_directories(metal_host_extension_dispatch PRIVATE ../../openEMS)
+add_test(NAME metal_host_extension_dispatch COMMAND metal_host_extension_dispatch)
 add_test(NAME metal_shader_runtime_compilation
     COMMAND metal_shader_smoke
     "${CMAKE_CURRENT_SOURCE_DIR}/../../openEMS/FDTD/engine_metal.mm"
